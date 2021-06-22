@@ -30,6 +30,7 @@ def get_auth_token(deviceid, hostname, sharedaccesskey, expiry = 60, test = Fals
     signedstr = urllib.parse.quote(base64.b64encode(signed.digest()), safe='')
     if test: print(signedstr)
     token = 'SharedAccessSignature sr=' + resourceUri + '&sig=' + signedstr + '&se=' + str(expiresAt)
+    print(token)
 
     return token
 
@@ -53,28 +54,55 @@ def extract_element(connection_string, element):
 
     return connection_string[start:end]
 
-print("Starting")
-
-if len(sys.argv) != 2:
+def print_help():
     print("Arguments missing or invalid")
     print("Usage:")
-    print(f"\t{sys.argv[0]} <device connection string>")
+    print(f"\t{sys.argv[0]} <device connection string> | x509 <host> <deviceId> <x509 certifcate> <x509 private key>")
     exit(4)
 
+print("Starting")
+
+if len(sys.argv) < 2:
+    print_help()
+
+if len(sys.argv) != 2 and len(sys.argv) != 6:
+    print_help()
+
+if len(sys.argv) == 6 and sys.argv[1] != 'x509':
+    print_help()
+
+# Root certificates
 path_to_root_cert = ".\\cert.pem"
-connection_string = sys.argv[1]
-device_id = extract_element(connection_string, 'deviceid')
-iot_hub_name = extract_element(connection_string, 'hostname')
-shared_access_key = extract_element(connection_string, 'sharedaccesskey')
+connection_string = ''
+iot_hub_name = ''
+device_id = ''
+shared_access_key = ''
+sas_token = ''
 message_frequency = 3
-SAS_TOKEN_TTL = 2
+SAS_TOKEN_TTL = 3
+use_x509 = False
+cert_file = None
+cert_key = None
+expiresAt = 0
 
-if device_id == "" or iot_hub_name == "" or shared_access_key == "":
-    print("Invalid connection string")
-    exit(4)
+if sys.argv[1] == 'x509':
+    iot_hub_name = sys.argv[2]
+    device_id = sys.argv[3]
+    cert_file = sys.argv[4]
+    cert_key = sys.argv[5]
+    use_x509 = True
+else:
+    connection_string = sys.argv[1]
+    device_id = extract_element(connection_string, 'deviceid')
+    iot_hub_name = extract_element(connection_string, 'hostname')
+    shared_access_key = extract_element(connection_string, 'sharedaccesskey')
+    
+    if sys.argv[1] != 'x509' and (device_id == "" or iot_hub_name == "" or shared_access_key == ""):
+        print("Invalid connection string")
+        exit(4)
 
-sas_token = get_auth_token(device_id, iot_hub_name, shared_access_key, SAS_TOKEN_TTL)
-expiresAt = (SAS_TOKEN_TTL * 60) + int(time.time())
+    sas_token = get_auth_token(device_id, iot_hub_name, shared_access_key, SAS_TOKEN_TTL)
+    expiresAt = (SAS_TOKEN_TTL * 60) + int(time.time())
 
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
@@ -85,6 +113,7 @@ def on_connect(client, userdata, flags, rc):
 
 def on_disconnect(client, userdata, rc):
     print("Device disconnected with result code: " + str(rc))
+    print(mqtt.error_string(rc))
 
 def on_publish(client, userdata, mid):
     print("Device sent message")
@@ -207,10 +236,10 @@ def set_up_subscriptions(client):
 
 twinrid = 0
 client = mqtt.Client(client_id=device_id, protocol=mqtt.MQTTv311)
-client.username_pw_set(username=iot_hub_name + '/' + device_id + "/?api-version=2018-06-30", password=sas_token)
+client.username_pw_set(username=iot_hub_name + '/' + device_id + "/?api-version=2018-06-30&DeviceClientType=py-azure-iotdevice%2F2.0.0-preview.13", password=sas_token)
 
 # Certificates will need to be in the same directory as the script
-client.tls_set(ca_certs=path_to_root_cert, certfile=None, keyfile=None, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLSv1_2, ciphers=None)
+client.tls_set(ca_certs=path_to_root_cert, certfile=cert_file, keyfile=cert_key, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLSv1_2, ciphers=None)
 client.tls_insecure_set(False)
 client.on_connect = on_connect
 client.on_disconnect = on_disconnect
@@ -243,7 +272,7 @@ while True:
     time.sleep(0.1)
 
 
-    if (expiresAt - int(time.time())) < 30:
+    if use_x509 == False and (expiresAt - int(time.time())) < 30:
         print("Reconnecting")
         client.disconnect()
         sas_token = get_auth_token(device_id, iot_hub_name, shared_access_key, SAS_TOKEN_TTL)
