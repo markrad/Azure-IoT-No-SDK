@@ -150,7 +150,7 @@ def on_message_direct(client, userdata, message):
                 try:
                     interval = int(payload['interval'])
                 except:
-                    print(f"\tInverval is invalid")
+                    print(f"\tInterval is invalid")
                     status = 200
                     client.publish(f'$iothub/methods/res/{status}/{rid}', '{ "result": "invalid interval" }')
                     return
