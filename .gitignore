@@ -1,2 +1,8 @@
 .vscode/**
 X509Certs/**
+X509Certs2/**
+X509Certs3/**
+CACertificates/**
+CustomerCerts/**
+altcerts/**
+
