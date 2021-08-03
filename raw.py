@@ -57,22 +57,19 @@ def extract_element(connection_string, element):
 def print_help():
     print("Arguments missing or invalid")
     print("Usage:")
-    print(f"\t{sys.argv[0]} <device connection string> | x509 <host> <deviceId> <x509 certifcate> <x509 private key>")
+    print(f"\t{sys.argv[0]} <root certificate pems> <device connection string> | <root certificate pems> <host> <deviceId> <x509 certifcate> <x509 private key>")
     exit(4)
 
 print("Starting")
 
-if len(sys.argv) < 2:
+if len(sys.argv) < 3:
     print_help()
 
-if len(sys.argv) != 2 and len(sys.argv) != 6:
-    print_help()
-
-if len(sys.argv) == 6 and sys.argv[1] != 'x509':
+if len(sys.argv) != 3 and len(sys.argv) != 6:
     print_help()
 
 # Root certificates
-path_to_root_cert = ".\\cert.pem"
+path_to_root_cert = ''
 connection_string = ''
 iot_hub_name = ''
 device_id = ''
@@ -85,7 +82,8 @@ cert_file = None
 cert_key = None
 expiresAt = 0
 
-if sys.argv[1] == 'x509':
+if len(sys.argv) == 6:
+    path_to_root_cert = sys.argv[1]
     iot_hub_name = sys.argv[2]
     device_id = sys.argv[3]
     cert_file = sys.argv[4]
