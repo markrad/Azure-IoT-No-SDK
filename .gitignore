@@ -5,4 +5,6 @@ X509Certs3/**
 CACertificates/**
 CustomerCerts/**
 altcerts/**
+TestCertificates/**
+raw.txt
 
