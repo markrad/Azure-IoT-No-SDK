@@ -95,7 +95,7 @@ else:
     iot_hub_name = extract_element(connection_string, 'hostname')
     shared_access_key = extract_element(connection_string, 'sharedaccesskey')
     
-    if sys.argv[1] != 'x509' and (device_id == "" or iot_hub_name == "" or shared_access_key == ""):
+    if len(sys.argv) != 6 and (device_id == "" or iot_hub_name == "" or shared_access_key == ""):
         print("Invalid connection string")
         exit(4)
 
